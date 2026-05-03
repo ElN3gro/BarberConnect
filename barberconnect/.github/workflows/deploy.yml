@@ -1,0 +1,24 @@
+name: Deploy BarberConnect
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy-backend:
+    name: Deploy Backend to Render
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render Deploy (Backend)
+        run: |
+          curl -X POST "${{ secrets.RENDER_BACKEND_DEPLOY_HOOK }}"
+        # Agrega RENDER_BACKEND_DEPLOY_HOOK en GitHub Settings > Secrets
+        # Lo obtienes en Render > Tu servicio > Settings > Deploy Hook
+
+  deploy-frontend:
+    name: Deploy Frontend to Render
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render Deploy (Frontend)
+        run: |
+          curl -X POST "${{ secrets.RENDER_FRONTEND_DEPLOY_HOOK }}"
