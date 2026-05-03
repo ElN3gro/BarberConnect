@@ -25,7 +25,7 @@ router.get('/barbers/pending', ...adminOnly, async (req, res) => {
 
 // ==================== APROBAR / RECHAZAR BARBERO ====================
 router.patch('/barbers/:profileId/approve', ...adminOnly, async (req, res) => {
-  const { action, rejection_reason } = req.body; // action: 'approve' | 'reject'
+  const { action, rejection_reason } = req.body;
   try {
     const newStatus = action === 'approve' ? 'approved' : 'rejected';
 
@@ -38,24 +38,32 @@ router.patch('/barbers/:profileId/approve', ...adminOnly, async (req, res) => {
       WHERE id = $4
     `, [newStatus, rejection_reason, req.user.id, req.params.profileId]);
 
-    // Obtener datos del barbero para notificación
-    const barberData = await db.query(`
-      SELECT u.name, u.phone FROM barber_profiles bp
-      JOIN users u ON u.id = bp.user_id WHERE bp.id = $1
-    `, [req.params.profileId]);
+    // Intentar enviar WhatsApp pero sin bloquear si falla
+    try {
+      const barberData = await db.query(`
+        SELECT u.name, u.phone FROM barber_profiles bp
+        JOIN users u ON u.id = bp.user_id WHERE bp.id = $1
+      `, [req.params.profileId]);
 
-    if (barberData.rows.length > 0) {
-      const { name, phone } = barberData.rows[0];
-      sendBarberApprovalNotification({ barberPhone: phone, barberName: name, approved: action === 'approve', rejection_reason })
-        .catch(err => console.error('Error WA:', err));
+      if (barberData.rows.length > 0) {
+        const { name, phone } = barberData.rows[0];
+        await sendBarberApprovalNotification({
+          barberPhone: phone,
+          barberName: name,
+          approved: action === 'approve',
+          rejection_reason
+        });
+      }
+    } catch (waError) {
+      console.error('WhatsApp notification failed (non-critical):', waError.message);
     }
 
     res.json({ message: `Barbero ${action === 'approve' ? 'aprobado' : 'rechazado'}` });
   } catch (err) {
+    console.error('Error aprobando barbero:', err);
     res.status(500).json({ error: 'Error al actualizar estado' });
   }
 });
-
 // ==================== TODOS LOS USUARIOS ====================
 router.get('/users', ...adminOnly, async (req, res) => {
   try {
