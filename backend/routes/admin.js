@@ -33,10 +33,10 @@ router.patch('/barbers/:profileId/approve', ...adminOnly, async (req, res) => {
       UPDATE barber_profiles SET
         status = $1,
         rejection_reason = $2,
-        approved_at = CASE WHEN $1 = 'approved' THEN NOW() ELSE NULL END,
+        approved_at = CASE WHEN $5 = 'approved' THEN NOW() ELSE NULL END,
         approved_by = $3
       WHERE id = $4
-    `, [newStatus, rejection_reason, req.user.id, req.params.profileId]);
+    `, [newStatus, rejection_reason, req.user.id, req.params.profileId, newStatus]);
 
     // Intentar enviar WhatsApp pero sin bloquear si falla
     try {
@@ -64,6 +64,7 @@ router.patch('/barbers/:profileId/approve', ...adminOnly, async (req, res) => {
     res.status(500).json({ error: 'Error al actualizar estado' });
   }
 });
+
 // ==================== TODOS LOS USUARIOS ====================
 router.get('/users', ...adminOnly, async (req, res) => {
   try {
@@ -84,7 +85,7 @@ router.get('/users', ...adminOnly, async (req, res) => {
 router.patch('/users/:userId/toggle', ...adminOnly, async (req, res) => {
   try {
     await db.query(
-      'UPDATE users SET is_active = NOT is_active WHERE id = $1 AND role != \'admin\'',
+      "UPDATE users SET is_active = NOT is_active WHERE id = $1 AND role != 'admin'",
       [req.params.userId]
     );
     res.json({ message: 'Estado actualizado' });
@@ -117,10 +118,10 @@ router.get('/appointments', ...adminOnly, async (req, res) => {
 router.get('/stats', ...adminOnly, async (req, res) => {
   try {
     const [users, barbers, appointments, pending] = await Promise.all([
-      db.query('SELECT COUNT(*) FROM users WHERE role = \'client\''),
-      db.query('SELECT COUNT(*) FROM barber_profiles WHERE status = \'approved\''),
-      db.query('SELECT COUNT(*) FROM appointments WHERE status != \'cancelled\''),
-      db.query('SELECT COUNT(*) FROM barber_profiles WHERE status = \'pending\''),
+      db.query("SELECT COUNT(*) FROM users WHERE role = 'client'"),
+      db.query("SELECT COUNT(*) FROM barber_profiles WHERE status = 'approved'"),
+      db.query("SELECT COUNT(*) FROM appointments WHERE status != 'cancelled'"),
+      db.query("SELECT COUNT(*) FROM barber_profiles WHERE status = 'pending'"),
     ]);
 
     const monthlyAppts = await db.query(`
